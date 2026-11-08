@@ -17,23 +17,32 @@ The service is designed to provide fast webhook responses, reliable transaction 
 - **Structured logging:** Uses Pino for application and HTTP request logging.
 - **Graceful shutdown:** Handles application shutdown and closes database, Redis, queue, worker, and HTTP server connections.
 - **Dockerized local environment:** Uses Docker Compose to run the application, PostgreSQL, and Redis locally.
+- **Containerized production deployment:** Packages the application into a Docker image and publishes it to Amazon ECR.
+- **Automated CI/CD:** Uses GitHub Actions to run tests, build Docker images, publish them to ECR, and deploy them to EC2 through AWS Systems Manager.
+- **HTTPS support:** Uses Nginx as a reverse proxy and Let's Encrypt for SSL/TLS certificates.
 
 ## Technology Stack
 
-| Technology     | Purpose                                      |
-| -------------- | -------------------------------------------- |
-| Node.js        | JavaScript runtime                           |
-| TypeScript     | Type-safe application development            |
-| Express 5      | HTTP server and API routing                  |
-| PostgreSQL     | Persistent transaction storage               |
-| Prisma 8       | Database access and data contract management |
-| Redis          | Background job queue storage                 |
-| BullMQ         | Asynchronous job processing                  |
-| Zod            | Request and environment validation           |
-| Pino           | Structured application logging               |
-| Vitest         | Unit testing                                 |
-| Docker         | Application containerization                 |
-| Docker Compose | Multi-container orchestration                |
+| Technology          | Purpose                                      |
+| ------------------- | -------------------------------------------- |
+| Node.js 24          | JavaScript runtime                           |
+| TypeScript 7        | Type-safe application development            |
+| Express 5           | HTTP server and API routing                  |
+| PostgreSQL          | Persistent transaction storage               |
+| Prisma 8 (RC)       | Database access and data contract management |
+| Redis               | Background job queue storage                 |
+| BullMQ 6            | Asynchronous job processing                  |
+| Zod 4               | Request and environment validation           |
+| Pino 10             | Structured application logging               |
+| Vitest 5            | Unit testing                                 |
+| Docker              | Application containerization                 |
+| Docker Compose      | Multi-container orchestration                |
+| AWS ECR             | Docker image registry                        |
+| AWS EC2             | Application hosting                          |
+| AWS Systems Manager | Remote deployment command execution          |
+| GitHub Actions      | CI/CD automation                             |
+| Nginx               | Reverse proxy and HTTPS termination          |
+| Let's Encrypt       | SSL/TLS certificates                         |
 
 ## Architecture
 
@@ -103,21 +112,97 @@ The application separates synchronous webhook handling from asynchronous transac
      BullMQ Worker
 ```
 
-**Production**
+**Production – AWS EC2**
 
 ```text
-                    Render
+                       Internet
+                          |
+                          v
+                  Cloudflare DNS
+                          |
+                          v
+                EC2 Elastic IP Address
+                          |
+                          v
+                      Nginx
+                     (80/443)
+                          |
+                          v
+                  Docker Container
+                    (Port 3000)
+                          |
+                 +--------+--------+
+                 |                 |
+                 v                 v
+            Express API      BullMQ Worker
+                 |                 |
+                 +--------+--------+
+                          |
+                 +--------+--------+
+                 |                 |
+                 v                 v
+          Cloud PostgreSQL    Cloud Redis
+```
+
+**Production – Render**
+
+```text
+                       Internet
+                          |
+                          v
+                       Render
+                          |
+                 +--------+--------+
+                 |                 |
+                 v                 v
+            Express API      BullMQ Worker
+                 |                 |
+                 +--------+--------+
+                          |
+                 +--------+--------+
+                 |                 |
+                 v                 v
+          Cloud PostgreSQL    Cloud Redis
+```
+
+### CI/CD architecture
+
+GitHub Actions automates the build, image publishing, and EC2 deployment process.
+
+```text
+                  Developer
                       |
-              +-------+-------+
-              |               |
-          Express API    BullMQ Worker
-              |               |
-              +-------+-------+
+                      | Push to main
+                      v
+                 GitHub Repository
                       |
-             +--------+--------+
-             |                 |
-             v                 v
-       Cloud PostgreSQL    Cloud Redis
+                      v
+                 GitHub Actions
+                      |
+                +-----+------+
+                |            |
+                v            v
+           Build & Test   Build Docker Image
+                              |
+                              v
+                         Amazon ECR
+                              |
+                              v
+                     AWS Systems Manager
+                              |
+                              v
+                         EC2 Instance
+                              |
+                      Pull Latest Image
+                              |
+                              v
+                       Docker Compose
+                              |
+                              v
+                      Restart Application
+                              |
+                              v
+                       Health Verification
 ```
 
 ## Transaction Lifecycle
@@ -135,7 +220,19 @@ PROCESSING
 
 ## API Endpoints
 
-**Base URL (local):**
+**Production Base URL (AWS EC2):**
+
+```text
+https://webhook-api.srujanjapthi.me
+```
+
+**Production Base URL (Render):**
+
+```text
+https://transaction-webhook-service-walnut-folks.onrender.com
+```
+
+**Local Base URL:**
 
 ```text
 http://localhost:3000
@@ -209,7 +306,20 @@ GET /v1/transactions?page=1&limit=10&status=PROCESSED
 
 ### 4. Health Check
 
-A health endpoint can be used to verify service availability if configured in the application.
+**Endpoint:** `GET /`
+
+Returns the current health status of the application.
+
+Example response:
+
+**HTTP 200 OK**
+
+```json
+{
+  "status": "HEALTHY",
+  "current_time": "2026-11-08T17:08:07.033Z"
+}
+```
 
 ## Project Structure
 
@@ -234,6 +344,7 @@ transaction-webhook-service/
 ├── postman/
 ├── .github/
 │   └── workflows/
+│       └── ci.yml
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
@@ -250,17 +361,29 @@ transaction-webhook-service/
 
 ## Prerequisites
 
-For Docker-based local development:
+The application supports two local development approaches: running everything using Docker Compose or running the Node.js application directly on your machine.
+
+### Option 1: Using Docker Compose
+
+Required software:
 
 - Docker Engine
 - Docker Compose plugin
 
-For running the application directly:
+No separate installation of Node.js, PostgreSQL, or Redis is required on the host machine. Docker Compose runs the application and its supporting services in containers.
 
-- Node.js 24+
-- npm
-- PostgreSQL 15+
-- Redis
+### Option 2: Without Docker
+
+Required software:
+
+| Software   | Requirement             | Purpose                                      |
+| ---------- | ----------------------- | -------------------------------------------- |
+| Node.js    | 24+                     | Runs the application and development tooling |
+| npm        | Included with Node.js   | Dependency management and scripts            |
+| PostgreSQL | 15+                     | Persistent transaction storage               |
+| Redis      | Compatible Redis server | BullMQ job queue storage                     |
+
+PostgreSQL and Redis must be installed and running separately, either locally or through managed services.
 
 ## Environment Configuration
 
@@ -269,6 +392,8 @@ Create a `.env` file in the project root using `.env.example` as a reference.
 The connection URLs differ between local development and production.
 
 ### Local development
+
+**When using Docker Compose:**
 
 The local Docker Compose configuration starts PostgreSQL and Redis as containers.
 
@@ -283,6 +408,22 @@ LOG_LEVEL=info
 ```
 
 The hostnames `postgres` and `redis` resolve to the respective services inside the Docker Compose network.
+
+**When running without Docker:**
+
+If PostgreSQL and Redis are installed directly on your machine, use their local connection URLs.
+
+Example:
+
+```env
+NODE_ENV=development
+PORT=3000
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/transaction_service
+REDIS_URL=redis://localhost:6379
+LOG_LEVEL=info
+```
+
+Make sure the PostgreSQL database exists and both services are running.
 
 ### Production
 
@@ -314,7 +455,11 @@ git clone https://github.com/srujanjapthi/transaction-webhook-service-walnut-fol
 cd transaction-webhook-service-walnut-folks
 ```
 
-### 2. Start the services
+### 2. Configure environment variables
+
+Create a `.env` file in the project root using the local Docker configuration shown in the Environment Configuration section.
+
+### 3. Start the services
 
 ```bash
 docker compose up --build
@@ -333,13 +478,13 @@ The API is available at:
 http://localhost:3000
 ```
 
-### 3. Run in the background
+### 4. Run in the background
 
 ```bash
 docker compose up --build -d
 ```
 
-### 4. View application logs
+### 5. View application logs
 
 ```bash
 docker compose logs -f app
@@ -352,7 +497,7 @@ docker compose logs -f postgres
 docker compose logs -f redis
 ```
 
-### 5. Stop the services
+### 6. Stop the services
 
 ```bash
 docker compose down
@@ -374,17 +519,259 @@ docker compose down --rmi all --volumes
 
 **Warning:** Removing volumes permanently deletes the local PostgreSQL and Redis data.
 
+## Running Locally Without Docker
+
+This approach runs the Node.js application directly on your machine. PostgreSQL and Redis must already be installed and running.
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/srujanjapthi/transaction-webhook-service-walnut-folks.git
+
+cd transaction-webhook-service-walnut-folks
+```
+
+### 2. Install dependencies
+
+```bash
+npm ci
+```
+
+### 3. Configure environment variables
+
+Create a `.env` file in the project root using `.env.example` as a reference.
+
+Configure the connection URLs for your local PostgreSQL and Redis instances.
+
+Example:
+
+```env
+NODE_ENV=development
+PORT=3000
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/transaction_service
+REDIS_URL=redis://localhost:6379
+LOG_LEVEL=info
+```
+
+### 4. Initialize Prisma Client
+
+Generate the Prisma Client:
+
+```bash
+npm run db:generate
+```
+
+### 5. Apply database migrations
+
+Make sure PostgreSQL is running and the configured database exists.
+
+Run:
+
+```bash
+npm run db:migrate
+```
+
+This executes the Prisma development migration workflow.
+
+### 6. Start the application
+
+Development mode:
+
+```bash
+npm run dev
+```
+
+The application runs using `tsx` and automatically restarts when source files change.
+
+For a production build:
+
+```bash
+npm run build
+npm start
+```
+
+The server will start on the configured port.
+
 ## Production Deployment
 
-The application is deployed as a Render web service and uses managed cloud PostgreSQL and Redis services.
+The application has two production deployments: AWS EC2 and Render.
 
-### Deployed application
+Both deployments run the same application and connect to managed PostgreSQL and Redis services.
 
-**Deployment URL:** https://transaction-webhook-service-walnut-folks.onrender.com/
+### 1. AWS EC2 Deployment
 
-### Important: Initial Request Delay
+The primary deployment uses Amazon EC2, Amazon ECR, Docker, and AWS Systems Manager.
 
-The Render service spins down after **15 minutes of inactivity**.
+**Production URL:**
+
+https://webhook-api.srujanjapthi.me/
+
+#### Infrastructure
+
+| Component          | Service             | Responsibility                                      |
+| ------------------ | ------------------- | --------------------------------------------------- |
+| DNS                | Cloudflare          | Domain and DNS management                           |
+| Compute            | AWS EC2             | Hosts the application                               |
+| Container Registry | Amazon ECR          | Stores Docker images                                |
+| Container Runtime  | Docker              | Runs the application container                      |
+| Orchestration      | Docker Compose      | Starts and manages the production container         |
+| Reverse Proxy      | Nginx               | Routes HTTP/HTTPS traffic to the application        |
+| SSL/TLS            | Let's Encrypt       | Provides HTTPS certificates                         |
+| Database           | Managed PostgreSQL  | Persistent transaction storage                      |
+| Queue Storage      | Managed Redis       | BullMQ job storage                                  |
+| Deployment         | AWS Systems Manager | Executes deployment commands on EC2                 |
+| CI/CD              | GitHub Actions      | Automates testing, image publishing, and deployment |
+
+#### Docker Image Publishing
+
+The application is packaged into a Docker image using the project's `Dockerfile`.
+
+GitHub Actions builds the image and publishes it to the private Amazon ECR repository:
+
+```text
+000540852340.dkr.ecr.ap-south-1.amazonaws.com/transaction-webhook-service
+```
+
+Each image is published with two tags:
+
+- `latest` – identifies the latest published image.
+- Git commit SHA – identifies the specific source revision used to build the image.
+
+The Docker image is built on the GitHub Actions runner. The EC2 instance only pulls and runs the published image; it does not need to build the application from source.
+
+#### CI/CD Pipeline
+
+The GitHub Actions workflow is defined in:
+
+```text
+.github/workflows/ci.yml
+```
+
+The pipeline is triggered by pushes and pull requests targeting the `main` branch.
+
+It consists of three jobs.
+
+**1. Build and Test**
+
+- Checks out the repository.
+- Sets up Node.js 24.
+- Installs dependencies using `npm ci`.
+- Runs the TypeScript build.
+- Executes the unit test suite.
+
+**2. Build and Push Docker Image**
+
+Runs after the build and test job succeeds.
+
+- Authenticates with AWS using GitHub OIDC.
+- Logs in to Amazon ECR.
+- Builds the Docker image using Docker Buildx.
+- Pushes the image to the ECR repository with `latest` and commit SHA tags.
+
+This job runs only for pushes to `main`, not pull requests.
+
+**3. Deploy to EC2**
+
+Runs after the image publishing job succeeds.
+
+- Authenticates with AWS using GitHub OIDC.
+- Sends a deployment command to the EC2 instance using AWS Systems Manager.
+- The EC2 instance authenticates with Amazon ECR using its IAM instance role.
+- Pulls the latest Docker image.
+- Restarts the application using Docker Compose.
+- Performs a health check against the application.
+- Reports deployment success or failure to GitHub Actions.
+
+This job also runs only for pushes to `main`.
+
+#### AWS Authentication
+
+The deployment uses IAM roles instead of storing long-lived AWS access keys in GitHub.
+
+**GitHub Actions authentication:**
+
+GitHub Actions uses OpenID Connect (OIDC) to assume the `GitHubActionsTransactionServiceRole` IAM role.
+
+This role provides permissions required to:
+
+- Authenticate with Amazon ECR.
+- Push Docker images to the application repository.
+- Send deployment commands through AWS Systems Manager.
+- Retrieve deployment command execution results.
+
+**EC2 authentication:**
+
+The EC2 instance uses an attached IAM instance role, `TransactionServiceEC2Role`, to:
+
+- Authenticate with Amazon ECR.
+- Pull the application Docker image.
+- Communicate with AWS Systems Manager.
+
+#### EC2 Deployment Configuration
+
+The production Docker Compose configuration is maintained in the GitHub repository:
+
+```text
+docker-compose.prod.yml
+```
+
+The EC2 instance retrieves this configuration and keeps it alongside the production environment file.
+
+Deployment directory:
+
+```text
+/opt/transaction-webhook-service/
+├── .env
+└── docker-compose.prod.yml
+```
+
+The `.env` file contains the production database and Redis connection URLs and is stored directly on EC2 with restricted file permissions.
+
+The production Compose configuration references the ECR image rather than building the application on the EC2 instance.
+
+#### Networking and HTTPS
+
+The application runs inside a Docker container and listens on port `3000`.
+
+Nginx runs on the EC2 instance and acts as a reverse proxy:
+
+```text
+                  Internet
+                     |
+                     v
+        webhook-api.srujanjapthi.me
+                     |
+                     v
+                  Nginx
+                (Port 80/443)
+                     |
+                     v
+           Docker Application
+                 (Port 3000)
+```
+
+- Cloudflare manages DNS for the custom domain.
+- An AWS Elastic IP provides a stable public IPv4 address for EC2.
+- Nginx forwards incoming requests to the application on `localhost:3000`.
+- Let's Encrypt provides the SSL/TLS certificate.
+- HTTP requests are redirected to HTTPS.
+- Port `3000` is not publicly exposed; external application traffic enters through Nginx on ports `80` and `443`.
+
+### 2. Render Deployment
+
+The application is also deployed as a Render web service.
+
+**Deployment URL:**
+
+https://transaction-webhook-service-walnut-folks.onrender.com/
+
+The Render deployment is maintained separately from the AWS EC2 deployment.
+
+It uses managed PostgreSQL and Redis services for persistent transaction storage and background job processing.
+
+#### Important: Initial Request Delay
+
+The Render service runs on the free tier and spins down after **15 minutes of inactivity**.
 
 When the service has been inactive for this period, Render puts it into a suspended state. When a new request arrives, the service needs to start up again.
 
@@ -393,39 +780,6 @@ As a result:
 - The first request after inactivity may take noticeably longer than usual.
 - Subsequent requests should be faster while the service remains active.
 - This initial delay is expected behavior and does not necessarily indicate an application error.
-
-## Running Without Docker
-
-If you prefer to run the application directly on your machine, make sure PostgreSQL and Redis are running and configure `.env` with their connection URLs.
-
-### 1. Install dependencies
-
-```bash
-npm install
-```
-
-### 2. Initialize the database
-
-```bash
-npx prisma db init
-```
-
-### 3. Start the application
-
-Development mode:
-
-```bash
-npm run dev
-```
-
-Production build:
-
-```bash
-npm run build
-npm start
-```
-
-The server will start on the configured port.
 
 ## Testing
 
@@ -508,6 +862,22 @@ Pino provides structured JSON logs with request details, processing information,
 ### 9. Docker Compose for local development
 
 Docker Compose provides a reproducible local environment by running the application, PostgreSQL, and Redis together.
+
+### 10. Containerized deployment with Amazon ECR
+
+Building the Docker image in GitHub Actions and storing it in ECR separates application building from production execution.
+
+The EC2 instance pulls a prebuilt image instead of compiling the application on the production server.
+
+### 11. Automated deployment through AWS Systems Manager
+
+AWS Systems Manager allows GitHub Actions to execute deployment commands on EC2 without exposing SSH access to the CI/CD pipeline or storing SSH private keys in GitHub.
+
+### 12. Nginx as a reverse proxy
+
+Nginx provides a public entry point for the application and forwards requests to the internal application port.
+
+It also handles HTTPS termination, keeping the application container independent of SSL certificate management.
 
 ## Author
 
