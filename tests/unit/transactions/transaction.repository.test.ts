@@ -38,6 +38,7 @@ describe("Transaction Repository", () => {
       first: mocks.first,
       update: mocks.update,
       orderBy: mocks.orderBy,
+      aggregate: mocks.aggregate,
     });
 
     mocks.orderBy.mockReturnValue({
