@@ -1,13 +1,13 @@
+
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${ECR_IMAGE:?ECR_IMAGE is required}
+    container_name: transaction-webhook-service
     ports:
       - "3000:3000"
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: ${PORT:-3000}
+      NODE_ENV: production
+      PORT: 3000
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
       LOG_LEVEL: ${LOG_LEVEL:-info}
