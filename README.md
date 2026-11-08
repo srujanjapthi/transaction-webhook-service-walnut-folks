@@ -16,22 +16,25 @@ The service is designed to provide fast webhook responses, reliable transaction 
 - **Centralized error handling:** Provides consistent API error responses.
 - **Structured logging:** Uses Pino for application and HTTP request logging.
 - **Graceful shutdown:** Handles application shutdown and closes database, Redis, queue, worker, and HTTP server connections.
+- **Dockerized environment:** Runs the application, PostgreSQL, and Redis using Docker Compose.
+- **Automatic database initialization:** Initializes the database as part of the Docker Compose startup workflow.
 
 ## Technology Stack
 
-| Technology | Purpose                                      |
-| ---------- | -------------------------------------------- |
-| Node.js    | JavaScript runtime                           |
-| TypeScript | Type-safe application development            |
-| Express 5  | HTTP server and API routing                  |
-| PostgreSQL | Persistent transaction storage               |
-| Prisma 8   | Database access and data contract management |
-| Redis      | Background job queue storage                 |
-| BullMQ     | Asynchronous job processing                  |
-| Zod        | Request and environment validation           |
-| Pino       | Structured application logging               |
-| Vitest     | Unit testing                                 |
-| Supertest  | HTTP testing utilities                       |
+| Technology     | Purpose                                      |
+| -------------- | -------------------------------------------- |
+| Node.js        | JavaScript runtime                           |
+| TypeScript     | Type-safe application development            |
+| Express 5      | HTTP server and API routing                  |
+| PostgreSQL     | Persistent transaction storage               |
+| Prisma 8       | Database access and data contract management |
+| Redis          | Background job queue storage                 |
+| BullMQ         | Asynchronous job processing                  |
+| Zod            | Request and environment validation           |
+| Pino           | Structured application logging               |
+| Vitest         | Unit testing                                 |
+| Docker         | Application containerization                 |
+| Docker Compose | Local multi-container orchestration          |
 
 ## Architecture
 
@@ -57,33 +60,33 @@ The application separates synchronous webhook handling from asynchronous transac
 ### High-level architecture
 
 ```text
-                  Client
-                    |
-                    | POST /v1/webhooks/transactions
-                    v
-              Express API
-                    |
-              Request Validation
-                    |
-              Transaction Service
-                    |
-              PostgreSQL
-              (PENDING)
-                    |
-                    v
-               BullMQ Queue
-                    |
-                  Redis
-                    |
-                    v
-             Background Worker
-                    |
-             Simulated API Call
-                (30 seconds)
-                    |
-                    v
-              PostgreSQL
-          (PROCESSED / FAILED)
+                    Client
+                      |
+                      | POST /v1/webhooks/transactions
+                      v
+                  Express API
+                      |
+                Request Validation
+                      |
+               Transaction Service
+                      |
+                  PostgreSQL
+                   (PENDING)
+                      |
+                      v
+                  BullMQ Queue
+                      |
+                    Redis
+                      |
+                      v
+               Background Worker
+                      |
+               Simulated API Call
+                  (30 seconds)
+                      |
+                      v
+                  PostgreSQL
+              (PROCESSED / FAILED)
 ```
 
 ## Transaction Lifecycle
@@ -196,11 +199,15 @@ transaction-webhook-service/
 │   ├── workers/
 │   ├── app.ts
 │   └── server.ts
-│
 ├── tests/
+├── postman/
+├── .github/
+│   └── workflows/
+├── .dockerignore
 ├── .env.example
-├── .gitattributes
 ├── .gitignore
+├── Dockerfile
+├── docker-compose.yml
 ├── package.json
 ├── package-lock.json
 ├── prisma-8.md
@@ -211,7 +218,12 @@ transaction-webhook-service/
 
 ## Prerequisites
 
-Make sure the following are installed:
+For the Docker-based setup:
+
+- Docker Engine
+- Docker Compose plugin
+
+For running the application directly on your machine:
 
 - Node.js 24+
 - npm
@@ -220,7 +232,7 @@ Make sure the following are installed:
 
 ## Environment Configuration
 
-Create a `.env` file in the project root.
+Create a `.env` file in the project root using `.env.example` as a reference.
 
 ```env
 NODE_ENV="development"
@@ -236,36 +248,98 @@ LOG_LEVEL="info"
 
 Update the database credentials according to your local PostgreSQL configuration.
 
-## Running the Application
+**Note:** The Docker Compose configuration supplies its own database and Redis connection URLs to the application container. The `postgres` and `redis` hostnames refer to the corresponding Compose services.
+
+## Running with Docker Compose
+
+Docker Compose starts the application, PostgreSQL, and Redis together. It also initializes the database before starting the application.
 
 ### 1. Clone the repository
 
 ```bash
 git clone https://github.com/srujanjapthi/transaction-webhook-service-walnut-folks.git
+
 cd transaction-webhook-service
 ```
 
-### 2. Install dependencies
+### 2. Start the services
+
+```bash
+docker compose up --build
+```
+
+Docker Compose performs the following steps:
+
+1. Builds the application images.
+2. Starts PostgreSQL and waits for its health check.
+3. Runs the `db-init` service to initialize the database using the configured Prisma 8 workflow.
+4. Starts Redis and waits for its health check.
+5. Starts the application after database initialization and Redis readiness.
+
+Once the containers are running, the API is available at:
+
+```text
+http://localhost:3000
+```
+
+### 3. Run in the background
+
+```bash
+docker compose up --build -d
+```
+
+### 4. View application logs
+
+```bash
+docker compose logs -f app
+```
+
+View logs for individual services:
+
+```bash
+docker compose logs -f postgres
+docker compose logs -f redis
+```
+
+### 5. Stop the services
+
+```bash
+docker compose down
+```
+
+This stops and removes the containers and Compose network while preserving the database and Redis volumes.
+
+To remove the project's containers and images:
+
+```bash
+docker compose down --rmi all
+```
+
+To also remove the persistent database and Redis data:
+
+```bash
+docker compose down --rmi all --volumes
+```
+
+**Warning:** Removing volumes permanently deletes the local PostgreSQL and Redis data.
+
+## Running Without Docker
+
+If you prefer to run the application directly on your machine, make sure PostgreSQL and Redis are running and configure the `.env` file with their connection URLs.
+
+### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Configure environment variables
-
-Create the `.env` file using the configuration described above.
-
-### 4. Initialize the database
-
-Make sure PostgreSQL and Redis are running.
-
-Initialize the database using the Prisma 8 workflow configured in the project:
+### 2. Initialize the database
 
 ```bash
 npx prisma db init
 ```
 
-### 5. Start the application
+### 3. Start the application
 
 Development mode:
 
@@ -359,6 +433,12 @@ This separation makes the application easier to maintain, test, and extend.
 ### 8. Structured logging with Pino
 
 Pino provides structured JSON logs with request details, processing information, and error context. This helps with debugging and production observability.
+
+### 9. Docker Compose for local development
+
+Docker Compose provides a reproducible local environment for the application and its infrastructure dependencies.
+
+PostgreSQL and Redis run in separate containers, while the application connects to them through the internal Compose network. Persistent volumes retain database and Redis data across container restarts.
 
 ## Author
 
