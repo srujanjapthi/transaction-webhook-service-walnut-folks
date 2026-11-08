@@ -1,0 +1,677 @@
+{
+  "info": {
+    "_postman_id": "7b82c10e-6f4a-4b5a-9c31-123456789001",
+    "name": "Transaction Webhook Service",
+    "description": "API testing collection for Transaction Webhook Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "transactionId",
+      "value": "txn_postman_100001"
+    },
+    {
+      "key": "duplicateTransactionId",
+      "value": "txn_postman_duplicate_001"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Valid Webhook Requests",
+      "item": [
+        {
+          "name": "Create Transaction - Standard INR",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"{{transactionId}}\",\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": 1500.50,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Transaction - Minimum Amount",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_minimum_001\",\n  \"source_account\": \"ACC003\",\n  \"destination_account\": \"ACC004\",\n  \"amount\": 0.01,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Transaction - USD",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_usd_001\",\n  \"source_account\": \"ACC005\",\n  \"destination_account\": \"ACC006\",\n  \"amount\": 99999999.99,\n  \"currency\": \"USD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Transaction - EUR",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_eur_001\",\n  \"source_account\": \"ACC007\",\n  \"destination_account\": \"ACC008\",\n  \"amount\": 250.75,\n  \"currency\": \"EUR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Duplicate Webhook Handling",
+      "item": [
+        {
+          "name": "First Delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"{{duplicateTransactionId}}\",\n  \"source_account\": \"ACC010\",\n  \"destination_account\": \"ACC020\",\n  \"amount\": 500.00,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Exact Duplicate Delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"{{duplicateTransactionId}}\",\n  \"source_account\": \"ACC010\",\n  \"destination_account\": \"ACC020\",\n  \"amount\": 500.00,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Duplicate ID With Different Payload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"{{duplicateTransactionId}}\",\n  \"source_account\": \"ACC999\",\n  \"destination_account\": \"ACC888\",\n  \"amount\": 900.00,\n  \"currency\": \"USD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Webhook Validation Failures",
+      "item": [
+        {
+          "name": "Missing Transaction ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": 100,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Empty Transaction ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"\",\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": 100,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Transaction ID Exceeds 100 Characters",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": 100,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Missing Source Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_invalid_001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": 100,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Empty Source Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_invalid_002\",\n  \"source_account\": \"\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": 100,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Missing Destination Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_invalid_003\",\n  \"source_account\": \"ACC001\",\n  \"amount\": 100,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Empty Destination Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_invalid_004\",\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"\",\n  \"amount\": 100,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Zero Amount",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_amount_001\",\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": 0,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Negative Amount",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_amount_002\",\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": -100,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Amount With More Than Two Decimal Places",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_amount_003\",\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": 100.123,\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Amount Supplied As String",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_amount_004\",\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": \"100.50\",\n  \"currency\": \"INR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Lowercase Currency",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_currency_001\",\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": 100,\n  \"currency\": \"inr\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Currency Too Short",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_currency_002\",\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": 100,\n  \"currency\": \"IN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Currency Too Long",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_currency_003\",\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": 100,\n  \"currency\": \"INRR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Currency Is Numeric",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"txn_currency_004\",\n  \"source_account\": \"ACC001\",\n  \"destination_account\": \"ACC002\",\n  \"amount\": 100,\n  \"currency\": \"123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "Empty Object",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/webhooks/transactions"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Transaction Retrieval",
+      "item": [
+        {
+          "name": "Get Existing Transaction",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/transactions/{{transactionId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Nonexistent Transaction",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/transactions/txn_does_not_exist"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Transaction Listing and Filtering",
+      "item": [
+        {
+          "name": "List Transactions - Default Pagination",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/transactions"
+          },
+          "response": []
+        },
+        {
+          "name": "List Transactions - Page 2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/transactions?page=2&limit=5"
+          },
+          "response": []
+        },
+        {
+          "name": "Filter - PENDING",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/transactions?status=PENDING"
+          },
+          "response": []
+        },
+        {
+          "name": "Filter - PROCESSING",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/transactions?status=PROCESSING"
+          },
+          "response": []
+        },
+        {
+          "name": "Filter - PROCESSED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/transactions?status=PROCESSED"
+          },
+          "response": []
+        },
+        {
+          "name": "Filter - FAILED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/transactions?status=FAILED"
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Page Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/transactions?page=-1"
+          },
+          "response": []
+        },
+        {
+          "name": "Limit Above Maximum",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/transactions?limit=200"
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Transaction Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/transactions?status=UNKNOWN"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
