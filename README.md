@@ -16,25 +16,25 @@ The service is designed to provide fast webhook responses, reliable transaction 
 - **Centralized error handling:** Provides consistent API error responses.
 - **Structured logging:** Uses Pino for application and HTTP request logging.
 - **Graceful shutdown:** Handles application shutdown and closes database, Redis, queue, worker, and HTTP server connections.
-- **Dockerized environment:** Runs the application, PostgreSQL, and Redis using Docker Compose.
-- **Automatic database initialization:** Initializes the database as part of the Docker Compose startup workflow.
+- **Dockerized environment:** Uses Docker Compose for local development and production deployment.
+- **Separate environment configurations:** Uses local PostgreSQL and Redis containers for development and managed cloud services for production.
 
 ## Technology Stack
 
-| Technology     | Purpose                                      |
-| -------------- | -------------------------------------------- |
-| Node.js        | JavaScript runtime                           |
-| TypeScript     | Type-safe application development            |
-| Express 5      | HTTP server and API routing                  |
-| PostgreSQL     | Persistent transaction storage               |
-| Prisma 8       | Database access and data contract management |
-| Redis          | Background job queue storage                 |
-| BullMQ         | Asynchronous job processing                  |
-| Zod            | Request and environment validation           |
-| Pino           | Structured application logging               |
-| Vitest         | Unit testing                                 |
-| Docker         | Application containerization                 |
-| Docker Compose | Local multi-container orchestration          |
+| Technology | Purpose |
+| ---------- | -------------------------------------------- |
+| Node.js | JavaScript runtime |
+| TypeScript | Type-safe application development |
+| Express 5 | HTTP server and API routing |
+| PostgreSQL | Persistent transaction storage |
+| Prisma 8 | Database access and data contract management |
+| Redis | Background job queue storage |
+| BullMQ | Asynchronous job processing |
+| Zod | Request and environment validation |
+| Pino | Structured application logging |
+| Vitest | Unit testing |
+| Docker | Application containerization |
+| Docker Compose | Multi-container orchestration |
 
 ## Architecture
 
@@ -87,6 +87,42 @@ The application separates synchronous webhook handling from asynchronous transac
                       v
                   PostgreSQL
               (PROCESSED / FAILED)
+```
+
+### Deployment architecture
+
+**Local development**
+
+```text
+                 Docker Compose
+                       |
+          +------------+------------+
+          |            |            |
+       Express      PostgreSQL     Redis
+        API          Container    Container
+          |
+     BullMQ Worker
+```
+
+**Production**
+
+```text
+                  GitHub Actions
+                        |
+                 Automated Deploy
+                        |
+                        v
+                    AWS EC2
+                        |
+                 Docker Compose
+                        |
+                 Express API
+                 BullMQ Worker
+                        |
+              +---------+---------+
+              |                   |
+              v                   v
+       Cloud PostgreSQL       Cloud Redis
 ```
 
 ## Transaction Lifecycle
@@ -164,11 +200,11 @@ Retrieves transactions with pagination and optional status filtering.
 
 Supported query parameters:
 
-| Parameter | Description                              | Default      |
+| Parameter | Description | Default |
 | --------- | ---------------------------------------- | ------------ |
-| `page`    | Page number                              | 1            |
-| `limit`   | Number of records per page (maximum 100) | 10           |
-| `status`  | Filter by transaction status             | All statuses |
+| `page` | Page number | 1 |
+| `limit` | Number of records per page (maximum 100) | 10 |
+| `status` | Filter by transaction status | All statuses |
 
 Example:
 
@@ -208,6 +244,7 @@ transaction-webhook-service/
 ├── .gitignore
 ├── Dockerfile
 ├── docker-compose.yml
+├── docker-compose.prod.yml
 ├── package.json
 ├── package-lock.json
 ├── prisma-8.md
@@ -218,12 +255,12 @@ transaction-webhook-service/
 
 ## Prerequisites
 
-For the Docker-based setup:
+For Docker-based deployment:
 
 - Docker Engine
 - Docker Compose plugin
 
-For running the application directly on your machine:
+For running the application directly:
 
 - Node.js 24+
 - npm
@@ -234,32 +271,52 @@ For running the application directly on your machine:
 
 Create a `.env` file in the project root using `.env.example` as a reference.
 
+The connection URLs differ between local development and production.
+
+### Local development
+
+The local Docker Compose configuration starts PostgreSQL and Redis as containers.
+
+Example local configuration:
+
 ```env
-NODE_ENV="development"
-
+NODE_ENV=development
 PORT=3000
-
-DATABASE_URL="postgresql://user:password@localhost:5432/transaction_service"
-
-REDIS_URL="redis://localhost:6379"
-
-LOG_LEVEL="info"
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/transaction_service
+REDIS_URL=redis://redis:6379
+LOG_LEVEL=info
 ```
 
-Update the database credentials according to your local PostgreSQL configuration.
+The hostnames `postgres` and `redis` resolve to the respective services inside the Docker Compose network.
 
-**Note:** The Docker Compose configuration supplies its own database and Redis connection URLs to the application container. The `postgres` and `redis` hostnames refer to the corresponding Compose services.
+### Production
 
-## Running with Docker Compose
+The production configuration connects to managed PostgreSQL and Redis services.
 
-Docker Compose starts the application, PostgreSQL, and Redis together. It also initializes the database before starting the application.
+Example production configuration:
+
+```env
+NODE_ENV=production
+PORT=3000
+DATABASE_URL=your_managed_postgresql_connection_url
+REDIS_URL=your_managed_redis_connection_url
+LOG_LEVEL=info
+```
+
+Replace the example values with the actual connection URLs provided by your cloud database and Redis providers.
+
+Keep production credentials private. Never commit `.env` files or cloud connection strings to GitHub.
+
+## Running Locally with Docker Compose
+
+The local configuration runs the application, PostgreSQL, Redis, and the database initialization service.
 
 ### 1. Clone the repository
 
 ```bash
 git clone https://github.com/srujanjapthi/transaction-webhook-service-walnut-folks.git
 
-cd transaction-webhook-service
+cd transaction-webhook-service-walnut-folks
 ```
 
 ### 2. Start the services
@@ -270,13 +327,12 @@ docker compose up --build
 
 Docker Compose performs the following steps:
 
-1. Builds the application images.
-2. Starts PostgreSQL and waits for its health check.
-3. Runs the `db-init` service to initialize the database using the configured Prisma 8 workflow.
-4. Starts Redis and waits for its health check.
-5. Starts the application after database initialization and Redis readiness.
+1. Starts PostgreSQL and waits for its health check.
+2. Runs the `db-init` service to initialize the database using the configured Prisma 8 workflow.
+3. Starts Redis and waits for its health check.
+4. Starts the application after database initialization and Redis readiness.
 
-Once the containers are running, the API is available at:
+The API is available at:
 
 ```text
 http://localhost:3000
@@ -294,7 +350,7 @@ docker compose up --build -d
 docker compose logs -f app
 ```
 
-View logs for individual services:
+View individual service logs:
 
 ```bash
 docker compose logs -f postgres
@@ -307,7 +363,7 @@ docker compose logs -f redis
 docker compose down
 ```
 
-This stops and removes the containers and Compose network while preserving the database and Redis volumes.
+This removes the containers and network while preserving PostgreSQL and Redis data in their Docker volumes.
 
 To remove the project's containers and images:
 
@@ -315,7 +371,7 @@ To remove the project's containers and images:
 docker compose down --rmi all
 ```
 
-To also remove the persistent database and Redis data:
+To also remove persistent database and Redis data:
 
 ```bash
 docker compose down --rmi all --volumes
@@ -323,9 +379,51 @@ docker compose down --rmi all --volumes
 
 **Warning:** Removing volumes permanently deletes the local PostgreSQL and Redis data.
 
+## Production Deployment with Docker Compose
+
+Production uses a separate Compose configuration. It runs the application while connecting to managed cloud PostgreSQL and Redis services.
+
+### 1. Configure production environment variables
+
+Create a `.env` file on the EC2 instance containing the production connection URLs:
+
+```env
+NODE_ENV=production
+PORT=3000
+DATABASE_URL=your_managed_postgresql_connection_url
+REDIS_URL=your_managed_redis_connection_url
+LOG_LEVEL=info
+```
+
+Ensure the EC2 instance can reach both cloud services and that their network access rules allow connections from the instance.
+
+### 2. Start the production application
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+### 3. View production logs
+
+```bash
+docker compose -f docker-compose.prod.yml logs -f app
+```
+
+### 4. Stop the production application
+
+```bash
+docker compose -f docker-compose.prod.yml down
+```
+
+The production Compose configuration does not start local PostgreSQL or Redis containers.
+
+### Automated deployment
+
+The intended deployment workflow uses GitHub Actions to build and test the application and trigger deployment on AWS EC2 when changes are pushed to the `main` branch.
+
 ## Running Without Docker
 
-If you prefer to run the application directly on your machine, make sure PostgreSQL and Redis are running and configure the `.env` file with their connection URLs.
+If you prefer to run the application directly on your machine, make sure PostgreSQL and Redis are running and configure `.env` with their connection URLs.
 
 ### 1. Install dependencies
 
@@ -434,11 +532,14 @@ This separation makes the application easier to maintain, test, and extend.
 
 Pino provides structured JSON logs with request details, processing information, and error context. This helps with debugging and production observability.
 
-### 9. Docker Compose for local development
+### 9. Docker Compose for local and production environments
 
-Docker Compose provides a reproducible local environment for the application and its infrastructure dependencies.
+Separate Docker Compose configurations keep local development and production infrastructure independent.
 
-PostgreSQL and Redis run in separate containers, while the application connects to them through the internal Compose network. Persistent volumes retain database and Redis data across container restarts.
+- Local development runs PostgreSQL and Redis in containers alongside the application.
+- Production runs the application on EC2 and connects to managed cloud PostgreSQL and Redis services.
+
+This provides a reproducible local environment while reducing the infrastructure workload on the production EC2 instance.
 
 ## Author
 
