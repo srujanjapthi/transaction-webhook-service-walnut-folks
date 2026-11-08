@@ -1,0 +1,24 @@
+// use prisma-8
+enum TransactionStatus {
+  @@type("pg/text@1")
+
+  PENDING = "PENDING"
+  PROCESSING = "PROCESSING"
+  PROCESSED = "PROCESSED"
+  FAILED = "FAILED"
+}
+
+model Transaction {
+  id                 Uuid                 @id @onCreate(uuid())
+  transactionId      Varchar(100)         @unique
+  sourceAccount      Varchar(100)
+  destinationAccount Varchar(100)
+  amount             NumericString(18, 2)
+  currency           Varchar(3)
+  status             TransactionStatus    @default(PENDING)
+
+  createdAt          DateTime             @default(now())
+  processedAt        DateTime?
+
+  @@index([status, createdAt])
+}
