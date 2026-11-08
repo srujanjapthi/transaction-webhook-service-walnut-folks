@@ -180,56 +180,33 @@ A health endpoint can be used to verify service availability if configured in th
 ## Project Structure
 
 ```text
-src/
-├── config/
-│   └── env.ts
+transaction-webhook-service/
+├── src/
+│   ├── config/
+│   ├── constants/
+│   ├── lib/
+│   ├── middleware/
+│   ├── models/
+│   ├── modules/
+│   ├── prisma/
+│   ├── queues/
+│   ├── scripts/
+│   ├── types/
+│   ├── utils/
+│   ├── workers/
+│   ├── app.ts
+│   └── server.ts
 │
-├── lib/
-│   ├── logger.ts
-│   ├── redis.ts
-│   └── bullmq-connection.ts
-│
-├── middleware/
-│   ├── validate.middleware.ts
-│   ├── error-handler.ts
-│   └── not-found.ts
-│
-├── modules/
-│   └── transactions/
-│       ├── transaction.schema.ts
-│       ├── transaction.locals.ts
-│       ├── transaction.repository.ts
-│       ├── transaction.service.ts
-│       ├── transaction.controller.ts
-│       └── transaction.routes.ts
-│
-├── queues/
-│   ├── transaction.queue.ts
-│   └── transaction.types.ts
-│
-├── workers/
-│   └── transaction.worker.ts
-│
-├── prisma/
-│   ├── contract.prisma
-│   ├── contract.json
-│   ├── contract.d.ts
-│   └── db.ts
-│
-├── utils/
-│   ├── api-response.ts
-│   └── app-error.ts
-│
-├── constants/
-│   └── error-codes.ts
-│
-├── app.ts
-└── server.ts
-
-tests/
-└── unit/
-    ├── transactions/
-    └── middleware/
+├── tests/
+├── .env.example
+├── .gitattributes
+├── .gitignore
+├── package.json
+├── package-lock.json
+├── prisma-8.md
+├── prisma.config.ts
+├── README.md
+└── tsconfig.json
 ```
 
 ## Prerequisites
@@ -246,14 +223,15 @@ Make sure the following are installed:
 Create a `.env` file in the project root.
 
 ```env
-NODE_ENV=development
+NODE_ENV="development"
+
 PORT=3000
 
-DATABASE_URL="postgresql://postgres:password@localhost:5432/transaction_service"
+DATABASE_URL="postgresql://user:password@localhost:5432/transaction_service"
 
 REDIS_URL="redis://localhost:6379"
 
-LOG_LEVEL=info
+LOG_LEVEL="info"
 ```
 
 Update the database credentials according to your local PostgreSQL configuration.
