@@ -16,25 +16,24 @@ The service is designed to provide fast webhook responses, reliable transaction 
 - **Centralized error handling:** Provides consistent API error responses.
 - **Structured logging:** Uses Pino for application and HTTP request logging.
 - **Graceful shutdown:** Handles application shutdown and closes database, Redis, queue, worker, and HTTP server connections.
-- **Dockerized environment:** Uses Docker Compose for local development and production deployment.
-- **Separate environment configurations:** Uses local PostgreSQL and Redis containers for development and managed cloud services for production.
+- **Dockerized local environment:** Uses Docker Compose to run the application, PostgreSQL, and Redis locally.
 
 ## Technology Stack
 
-| Technology | Purpose |
-| ---------- | -------------------------------------------- |
-| Node.js | JavaScript runtime |
-| TypeScript | Type-safe application development |
-| Express 5 | HTTP server and API routing |
-| PostgreSQL | Persistent transaction storage |
-| Prisma 8 | Database access and data contract management |
-| Redis | Background job queue storage |
-| BullMQ | Asynchronous job processing |
-| Zod | Request and environment validation |
-| Pino | Structured application logging |
-| Vitest | Unit testing |
-| Docker | Application containerization |
-| Docker Compose | Multi-container orchestration |
+| Technology     | Purpose                                      |
+| -------------- | -------------------------------------------- |
+| Node.js        | JavaScript runtime                           |
+| TypeScript     | Type-safe application development            |
+| Express 5      | HTTP server and API routing                  |
+| PostgreSQL     | Persistent transaction storage               |
+| Prisma 8       | Database access and data contract management |
+| Redis          | Background job queue storage                 |
+| BullMQ         | Asynchronous job processing                  |
+| Zod            | Request and environment validation           |
+| Pino           | Structured application logging               |
+| Vitest         | Unit testing                                 |
+| Docker         | Application containerization                 |
+| Docker Compose | Multi-container orchestration                |
 
 ## Architecture
 
@@ -95,11 +94,11 @@ The application separates synchronous webhook handling from asynchronous transac
 
 ```text
                  Docker Compose
-                       |
-          +------------+------------+
-          |            |            |
-       Express      PostgreSQL     Redis
-        API          Container    Container
+                      |
+          +-----------+-----------+
+          |           |           |
+       Express    PostgreSQL    Redis
+        API        Container   Container
           |
      BullMQ Worker
 ```
@@ -107,22 +106,18 @@ The application separates synchronous webhook handling from asynchronous transac
 **Production**
 
 ```text
-                  GitHub Actions
-                        |
-                 Automated Deploy
-                        |
-                        v
-                    AWS EC2
-                        |
-                 Docker Compose
-                        |
-                 Express API
-                 BullMQ Worker
-                        |
-              +---------+---------+
-              |                   |
-              v                   v
-       Cloud PostgreSQL       Cloud Redis
+                    Render
+                      |
+              +-------+-------+
+              |               |
+          Express API    BullMQ Worker
+              |               |
+              +-------+-------+
+                      |
+             +--------+--------+
+             |                 |
+             v                 v
+       Cloud PostgreSQL    Cloud Redis
 ```
 
 ## Transaction Lifecycle
@@ -140,7 +135,7 @@ PROCESSING
 
 ## API Endpoints
 
-Base URL:
+**Base URL (local):**
 
 ```text
 http://localhost:3000
@@ -200,11 +195,11 @@ Retrieves transactions with pagination and optional status filtering.
 
 Supported query parameters:
 
-| Parameter | Description | Default |
+| Parameter | Description                              | Default      |
 | --------- | ---------------------------------------- | ------------ |
-| `page` | Page number | 1 |
-| `limit` | Number of records per page (maximum 100) | 10 |
-| `status` | Filter by transaction status | All statuses |
+| `page`    | Page number                              | 1            |
+| `limit`   | Number of records per page (maximum 100) | 10           |
+| `status`  | Filter by transaction status             | All statuses |
 
 Example:
 
@@ -255,7 +250,7 @@ transaction-webhook-service/
 
 ## Prerequisites
 
-For Docker-based deployment:
+For Docker-based local development:
 
 - Docker Engine
 - Docker Compose plugin
@@ -379,47 +374,25 @@ docker compose down --rmi all --volumes
 
 **Warning:** Removing volumes permanently deletes the local PostgreSQL and Redis data.
 
-## Production Deployment with Docker Compose
+## Production Deployment
 
-Production uses a separate Compose configuration. It runs the application while connecting to managed cloud PostgreSQL and Redis services.
+The application is deployed as a Render web service and uses managed cloud PostgreSQL and Redis services.
 
-### 1. Configure production environment variables
+### Deployed application
 
-Create a `.env` file on the EC2 instance containing the production connection URLs:
+**Deployment URL:** https://transaction-webhook-service-walnut-folks.onrender.com/
 
-```env
-NODE_ENV=production
-PORT=3000
-DATABASE_URL=your_managed_postgresql_connection_url
-REDIS_URL=your_managed_redis_connection_url
-LOG_LEVEL=info
-```
+### Important: Initial Request Delay
 
-Ensure the EC2 instance can reach both cloud services and that their network access rules allow connections from the instance.
+The Render service spins down after **15 minutes of inactivity**.
 
-### 2. Start the production application
+When the service has been inactive for this period, Render puts it into a suspended state. When a new request arrives, the service needs to start up again.
 
-```bash
-docker compose -f docker-compose.prod.yml up --build -d
-```
+As a result:
 
-### 3. View production logs
-
-```bash
-docker compose -f docker-compose.prod.yml logs -f app
-```
-
-### 4. Stop the production application
-
-```bash
-docker compose -f docker-compose.prod.yml down
-```
-
-The production Compose configuration does not start local PostgreSQL or Redis containers.
-
-### Automated deployment
-
-The intended deployment workflow uses GitHub Actions to build and test the application and trigger deployment on AWS EC2 when changes are pushed to the `main` branch.
+- The first request after inactivity may take noticeably longer than usual.
+- Subsequent requests should be faster while the service remains active.
+- This initial delay is expected behavior and does not necessarily indicate an application error.
 
 ## Running Without Docker
 
@@ -532,14 +505,9 @@ This separation makes the application easier to maintain, test, and extend.
 
 Pino provides structured JSON logs with request details, processing information, and error context. This helps with debugging and production observability.
 
-### 9. Docker Compose for local and production environments
+### 9. Docker Compose for local development
 
-Separate Docker Compose configurations keep local development and production infrastructure independent.
-
-- Local development runs PostgreSQL and Redis in containers alongside the application.
-- Production runs the application on EC2 and connects to managed cloud PostgreSQL and Redis services.
-
-This provides a reproducible local environment while reducing the infrastructure workload on the production EC2 instance.
+Docker Compose provides a reproducible local environment by running the application, PostgreSQL, and Redis together.
 
 ## Author
 
