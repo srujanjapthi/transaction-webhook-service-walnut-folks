@@ -12,10 +12,7 @@ export function sendSuccess<T>(
 ): void {
   switch (options.type) {
     case "resource":
-      res.status(statusCode).json({
-        success: true,
-        data: options.data,
-      });
+      res.status(statusCode).json(options.data);
       return;
 
     case "list":

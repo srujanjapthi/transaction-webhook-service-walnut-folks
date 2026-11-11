@@ -31,7 +31,11 @@ export async function getTransaction(
     return;
   }
 
-  sendSuccess(res, { type: "resource", success: true, data: transaction });
+  sendSuccess<(typeof transaction)[]>(res, {
+    type: "resource",
+    success: true,
+    data: [transaction],
+  });
 }
 
 export async function listTransactions(
